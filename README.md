@@ -6,6 +6,8 @@ Le [wiki](https://github.com/ElodieFZ/Produits_Spatiaux/wiki) décrit quelles do
 
 ## Tutoriaux
 
+Tous les tutoriaux sont disponibles sous forme de notebooks dans `python/notebooks` et en version HTML.
+
 Tutoriaux généraux sur le traitement de données spatiales :
 
  * python/notebooks/ 
