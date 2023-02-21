@@ -24,14 +24,14 @@ Une fois Anaconda installé,
 pour créer un nouvel environnement contenant tous les modules nécessaires :
 
 ```text
-conda create --name <mon_nouvel_environment> --file python/requirements.txt
+conda create --name <mon_nouvel_environment> -c conda-forge --file python/requirements.txt
 ```
 
 ou pour installer les modules nécessaires dans un environnement déjà existant :
 
 ```
 conda activate <mon_environnement_existant>
-conda install --file python/requirements.txt
+conda install -c conda-forge --file python/requirements.txt
 ```
 
 
