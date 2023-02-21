@@ -6,12 +6,10 @@ Le [wiki](https://github.com/ElodieFZ/Produits_Spatiaux/wiki) décrit quelles do
 
 ## Tutoriaux
 
-Tous les tutoriaux sont disponibles sous forme de notebooks dans `python/notebooks` et en version HTML.
+Tous les tutoriaux sont disponibles sous forme de notebooks dans `python/notebooks`. Une version HTML est également disponible dans `python/docs`.
 
-Tutoriaux généraux sur le traitement de données spatiales :
-
- * python/notebooks/ 
- * [tutoriel python en HTML](https://elodiefz.github.io/Produits_Spatiaux/python/docs/introduction.html)
+ * Introduction à Python spatial ([HTML](https://elodiefz.github.io/Produits_Spatiaux/python/docs/introduction.html))
+ * Utiliser Google Earth Engine (GEE) ([HTML](https://elodiefz.github.io/Produits_Spatiaux/python/docs/introduction_gee.html))
 
 ## Scripts
 
