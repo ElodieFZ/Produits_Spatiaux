@@ -9,7 +9,7 @@ Le [wiki](https://github.com/ElodieFZ/Produits_Spatiaux/wiki) décrit quelles do
 Tutoriaux généraux sur le traitement de données spatiales :
 
  * python/notebooks/ 
- * python/docs/
+ * [tutoriel python en HTML](https://elodiefz.github.io/Produits_Spatiaux/python/docs/introduction.html)
 
 ## Scripts
 
