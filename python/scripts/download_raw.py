@@ -21,9 +21,9 @@ logger = logging.getLogger(__name__)
 # Output directory
 datadir = pathlib.Path("/home", "elodie", "Data")
 
-# Dataset
+# Product name
 # Possible values: ERA5-land
-dataset = "ERA5-land"
+product = "ERA5-land"
 
 # Parameters
 # Possible values: total_precipitation, skin_temperature
@@ -43,15 +43,18 @@ date2 = "202112"
 
 # ---------------------------------------------------------------
 
-outdir = datadir / dataset / zone
+outdir = datadir / product / zone
 
 # Read zone definition
 with open('zones.yaml', 'r') as f:
     bbox = yaml.safe_load(f)[zone]
 
-# Connect to CDS
-c = cdsapi.Client()
+# Different download scripts depending on product
+if product == "ERA5-land":
 
-for p in parameters:
-    tools.get_period_cds(dataset, outdir, p, date1, date2,
-                   bbox['lat_min'], bbox['lat_max'], bbox['lon_min'], bbox['lon_max'], c)
+    # Connect to CDS
+    c = cdsapi.Client()
+
+    for p in parameters:
+        tools.get_period_cds(product, outdir, p, date1, date2,
+                             bbox['lat_min'], bbox['lat_max'], bbox['lon_min'], bbox['lon_max'], c)
