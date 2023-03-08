@@ -1,0 +1,8 @@
+# Definition of zones
+
+France:
+  lat_min: 42
+  lat_max: 52
+  lon_min: -6
+  lon_max: 9
+

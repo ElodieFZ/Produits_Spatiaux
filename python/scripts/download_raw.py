@@ -2,6 +2,7 @@ import tools
 import cdsapi
 import logging
 import pathlib
+import yaml
 
 # Download raw data from the Climate Data Store
 # Save to disk as netcdf file(s)
@@ -29,11 +30,8 @@ dataset = "ERA5-land"
 parameters = ["total_precipitation", "skin_temperature"]
 
 # Zone to download
+# Existing zones: France
 zone = 'France'
-lat_min = 42
-lat_max = 52
-lon_min = -6
-lon_max = 9
 
 # Period to download (full months at hourly resolution)
 date1 = "202001"
@@ -46,12 +44,14 @@ date2 = "202112"
 # ---------------------------------------------------------------
 
 outdir = datadir / dataset / zone
-assert(datadir.is_dir())
-outdir.mkdir(parents=True, exist_ok=True)
+
+# Read zone definition
+with open('zones.yaml', 'r') as f:
+    bbox = yaml.safe_load(f)[zone]
 
 # Connect to CDS
 c = cdsapi.Client()
 
 for p in parameters:
     tools.get_period_cds(dataset, outdir, p, date1, date2,
-                   lat_min, lat_max, lon_min, lon_max, c)
+                   bbox['lat_min'], bbox['lat_max'], bbox['lon_min'], bbox['lon_max'], c)
