@@ -3,7 +3,7 @@ import cdsapi
 import logging
 import pathlib
 
-# Download data from the Climate Data Store
+# Download raw data from the Climate Data Store
 # Save to disk as netcdf file(s)
 # One file = hourly data for one month for one parameter
 
@@ -48,9 +48,6 @@ date2 = "202112"
 outdir = datadir / dataset / zone
 assert(datadir.is_dir())
 outdir.mkdir(parents=True, exist_ok=True)
-
-france = tools.read_shapefile(datadir / "shapefiles" / "France" / "FRA_adm0.shp")
-occitanie = tools.read_shapefile(datadir / "shapefiles" / "France" / "ADMIN-EXPRESS_3-1" / "REGION.shp")
 
 # Connect to CDS
 c = cdsapi.Client()
