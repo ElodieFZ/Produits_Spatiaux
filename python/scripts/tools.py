@@ -14,6 +14,7 @@ import requests as r
 import json
 import time
 import yaml
+import cdsapi
 
 ###
 # Tools to work with spatial data in python
@@ -22,7 +23,10 @@ import yaml
 logger = logging.getLogger(__name__)
 
 
-def get_one_month_cds(params, connex):
+def get_one_month_cds(params):
+
+    # Connect to CDS
+    api = cdsapi.Client()
 
     # Download hourly data for one full month for one parameter and one bounding box
     # Save as netcdf file
@@ -34,7 +38,7 @@ def get_one_month_cds(params, connex):
 
     logger.info(f"Requesting {params['parameter']} for year {params['year']} month {params['month']}")
 
-    connex.retrieve(
+    api.retrieve(
         cds_dataset,
         {
             'area': params['zone'],
@@ -72,25 +76,31 @@ def get_one_month_cds(params, connex):
     return True
 
 
-def get_period_cds(dataset, outdir, parameter, yyyymmdd1, yyyymmdd2, lat_min, lat_max, lon_min, lon_max, connex):
+def get_period_cds(dataset, outdir, parameters, yyyymmdd1, yyyymmdd2, lat_min, lat_max, lon_min, lon_max):
     # Download hourly data for one period, one parameter and one bounding box
     # Save as netcdf files, one file per month
 
     req_base = {
-        'parameter': parameter,
         'dataset': dataset,
         'zone': [lat_max, lon_min, lat_min, lon_max],
     }
 
-    for y in pd.date_range(yyyymmdd1, yyyymmdd2, freq="MS"):
-        year = y.strftime("%Y"),
-        month = y.strftime("%m"),
-        req = req_base | {
-            'year': year,
-            'month': month,
-            'outfile': outdir / f"{year}{month}_{parameter}.nc"
-        }
-        get_one_month_cds(req, connex)
+    list_req = []
+    for p in parameters:
+        out = outdir / p
+        out.mkdir(exist_ok=True, parents=True)
+        for y in pd.date_range(yyyymmdd1, yyyymmdd2, freq="MS"):
+            year = y.strftime("%Y")
+            month = y.strftime("%m")
+            list_req.append(req_base | {
+                'parameter': p,
+                'year': year,
+                'month': month,
+                'outfile': out / f"{year}{month}_{p}.nc"
+            })
+
+    for req in list_req:
+        get_one_month_cds(req)
 
 
 def read_shapefile(file, crs_out='EPSG:4326'):

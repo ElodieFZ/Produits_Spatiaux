@@ -26,14 +26,14 @@ datadir = pathlib.Path("/home", "elodie", "Data")
 
 # Product name
 # Possible values: ERA5-land / MOD11A1.061
-product = "MOD11A1.061"
-#product = 'ERA5-land'
+#product = "MOD11A1.061"
+product = 'ERA5-land'
 
 # Parameters
 # Possible values: total_precipitation, skin_temperature
-#parameters = ["total_precipitation", "skin_temperature"]
+parameters = ["total_precipitation", "skin_temperature"]
 # MODIS parameters
-parameters = ['Emis_32', 'LST_Day_1km']
+#parameters = ['Emis_32', 'LST_Day_1km']
 
 # Zone to download
 # Existing zones: France
@@ -41,7 +41,7 @@ zone = 'France'
 
 # Period to download - format YYYYMMDD
 yyyymmdd1 = "20200101"
-yyyymmdd2 = "20200101"
+yyyymmdd2 = "20200215"
 
 # Data will be saved in datadir/zone
 # Filenames convention: YYYYMM_parameter.nc
@@ -58,22 +58,20 @@ d2 = dt.datetime.strptime(yyyymmdd2, "%Y%m%d")
 with open('zones.yaml', 'r') as f:
     bbox = yaml.safe_load(f)[zone]
 
+starttime = time.time()
+
 # Different download scripts depending on product
 if product == "ERA5-land":
 
-    # Connect to CDS
-    api = cdsapi.Client()
-
-    for p in parameters:
-        tools.get_period_cds(product, outdir / product, p, d1, d2,
-                             bbox['lat_min'], bbox['lat_max'], bbox['lon_min'], bbox['lon_max'], api)
+    tools.get_period_cds(product, outdir / product, parameters, d1, d2,
+                             bbox['lat_min'], bbox['lat_max'], bbox['lon_min'], bbox['lon_max'])
 
 elif product == "MOD11A1.061":
 
-    starttime = time.time()
     tools.get_all_appears(outdir, product, parameters, d1, d2,
                         bbox['lat_min'], bbox['lat_max'], bbox['lon_min'], bbox['lon_max'])
-    print((time.time() - starttime))
 
 else:
     print(f'Data download not available yet for product {product}')
+
+print((time.time() - starttime))
