@@ -22,26 +22,25 @@ import yaml
 logger = logging.getLogger(__name__)
 
 
-def get_one_month_cds(parameter, year, month, lat_min, lat_max, lon_min, lon_max, dataset, outfile, connex):
+def get_one_month_cds(params, connex):
+
     # Download hourly data for one full month for one parameter and one bounding box
     # Save as netcdf file
-    if dataset == "ERA5-land":
+    if params['dataset'] == "ERA5-land":
         cds_dataset = "reanalysis-era5-land"
     else:
         logger.error("Unknown dataset.")
         return False
 
-    logger.info(f"Requesting {parameter} for year {year} month {month}")
+    logger.info(f"Requesting {params['parameter']} for year {params['year']} month {params['month']}")
 
     connex.retrieve(
         cds_dataset,
         {
-            'area': [
-                lat_max, lon_min, lat_min, lon_max,
-            ],
-            'variable': parameter,
-            'year': year,
-            'month': month,
+            'area': params['zone'],
+            'variable': params['parameter'],
+            'year': params['year'],
+            'month': params['month'],
             'day': [
                 '01', '02', '03',
                 '04', '05', '06',
@@ -67,8 +66,8 @@ def get_one_month_cds(parameter, year, month, lat_min, lat_max, lon_min, lon_max
             ],
             'format': 'netcdf',
         },
-        outfile)
-    logger.info(f"Data saved to {outfile}")
+        params['outfile'])
+    logger.info(f"Data saved to {params['outfile']}")
 
     return True
 
@@ -77,13 +76,21 @@ def get_period_cds(dataset, outdir, parameter, yyyymmdd1, yyyymmdd2, lat_min, la
     # Download hourly data for one period, one parameter and one bounding box
     # Save as netcdf files, one file per month
 
-    assert (outdir.is_dir())
+    req_base = {
+        'parameter': parameter,
+        'dataset': dataset,
+        'zone': [lat_max, lon_min, lat_min, lon_max],
+    }
 
     for y in pd.date_range(yyyymmdd1, yyyymmdd2, freq="MS"):
-        year = y.strftime("%Y")
-        month = y.strftime("%m")
-        outfile = outdir / f"{year}{month}_{parameter}.nc"
-        get_one_month_cds(parameter, year, month, lat_min, lat_max, lon_min, lon_max, dataset, outfile, connex)
+        year = y.strftime("%Y"),
+        month = y.strftime("%m"),
+        req = req_base | {
+            'year': year,
+            'month': month,
+            'outfile': outdir / f"{year}{month}_{parameter}.nc"
+        }
+        get_one_month_cds(req, connex)
 
 
 def read_shapefile(file, crs_out='EPSG:4326'):
