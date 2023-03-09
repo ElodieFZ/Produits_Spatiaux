@@ -3,6 +3,9 @@ import cdsapi
 import logging
 import pathlib
 import yaml
+import requests as r
+import datetime as dt
+import time
 
 # Download raw data from the Climate Data Store
 # Save to disk as netcdf file(s)
@@ -22,20 +25,23 @@ logger = logging.getLogger(__name__)
 datadir = pathlib.Path("/home", "elodie", "Data")
 
 # Product name
-# Possible values: ERA5-land
-product = "ERA5-land"
+# Possible values: ERA5-land / MOD11A1.061
+#product = "MOD11A1.061"
+product = 'ERA5-land'
 
 # Parameters
 # Possible values: total_precipitation, skin_temperature
 parameters = ["total_precipitation", "skin_temperature"]
+# MODIS parameters
+#parameters = ['Emis_32', 'LST_Day_1km']
 
 # Zone to download
 # Existing zones: France
 zone = 'France'
 
-# Period to download (full months at hourly resolution)
-date1 = "202001"
-date2 = "202112"
+# Period to download - format YYYYMMDD
+yyyymmdd1 = "20200101"
+yyyymmdd2 = "20200331"
 
 # Data will be saved in datadir/zone
 # Filenames convention: YYYYMM_parameter.nc
@@ -43,7 +49,10 @@ date2 = "202112"
 
 # ---------------------------------------------------------------
 
-outdir = datadir / product / zone
+outdir = datadir / zone
+
+d1 = dt.datetime.strptime(yyyymmdd1, "%Y%m%d")
+d2 = dt.datetime.strptime(yyyymmdd2, "%Y%m%d")
 
 # Read zone definition
 with open('zones.yaml', 'r') as f:
@@ -53,8 +62,27 @@ with open('zones.yaml', 'r') as f:
 if product == "ERA5-land":
 
     # Connect to CDS
-    c = cdsapi.Client()
+    api = cdsapi.Client()
 
     for p in parameters:
-        tools.get_period_cds(product, outdir, p, date1, date2,
-                             bbox['lat_min'], bbox['lat_max'], bbox['lon_min'], bbox['lon_max'], c)
+        tools.get_period_cds(product, outdir / product, p, d1, d2,
+                             bbox['lat_min'], bbox['lat_max'], bbox['lon_min'], bbox['lon_max'], api)
+
+elif product == "MOD11A1.061":
+
+    api = 'https://appeears.earthdatacloud.nasa.gov/api'
+
+    user = 'ElodieFernandez'
+    password = 'hf9#ajYf6%REDb'
+
+    starttime = time.time()
+    tools.get_all_appears(outdir, product, parameters, d1, d2,
+                        bbox['lat_min'], bbox['lat_max'], bbox['lon_min'], bbox['lon_max'])
+    print((time.time() - starttime))
+
+    ##token_response = r.post('{}login'.format(api), auth=(user, password)).json()
+    ##del user, password
+    ##token_response
+
+else:
+    print(f'Data download not available yet for product {product}')

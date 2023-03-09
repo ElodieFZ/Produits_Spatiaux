@@ -1,5 +1,5 @@
 import pathlib  # For file management
-#import netCDF4 as nc  # to use netcdf data
+# import netCDF4 as nc  # to use netcdf data
 import xarray as xr
 import geopandas as gpd  # to work with geospatial data ("spatial extension" to pandas)
 import rasterio  # to use raster data
@@ -9,6 +9,11 @@ import shapely.geometry  # To work with geometries
 import pandas as pd
 import logging
 import datetime as dt
+import concurrent.futures
+import requests as r
+import threading
+import json
+import time
 
 ###
 # Tools to work with spatial data in python
@@ -68,13 +73,13 @@ def get_one_month_cds(parameter, year, month, lat_min, lat_max, lon_min, lon_max
     return True
 
 
-def get_period_cds(dataset, outdir, parameter, yyyymm1, yyyymm2, lat_min, lat_max, lon_min, lon_max, connex):
+def get_period_cds(dataset, outdir, parameter, yyyymmdd1, yyyymmdd2, lat_min, lat_max, lon_min, lon_max, connex):
     # Download hourly data for one period, one parameter and one bounding box
     # Save as netcdf files, one file per month
 
-    assert(outdir.is_dir())
+    assert (outdir.is_dir())
 
-    for y in pd.date_range(dt.datetime.strptime(yyyymm1, "%Y%m"), dt.datetime.strptime(yyyymm2, "%Y%m"), freq="MS"):
+    for y in pd.date_range(yyyymmdd1, yyyymmdd2, freq="MS"):
         year = y.strftime("%Y")
         month = y.strftime("%m")
         outfile = outdir / f"{year}{month}_{parameter}.nc"
@@ -89,7 +94,7 @@ def read_shapefile(file, crs_out='EPSG:4326'):
     :return: GeoDataframe
     """
 
-    assert(file.is_file())
+    assert (file.is_file())
 
     shape = gpd.read_file(file)
 
@@ -109,12 +114,117 @@ def read_shapefile(file, crs_out='EPSG:4326'):
     return shape
 
 
-# Convert time from UTC to local time
+def geojson_from_bbox(lat_min, lat_max, lon_min, lon_max):
+    """
+    Create geojson object from bbox coordinates
+    """
+    lon_point_list = [lon_min, lon_min, lon_max, lon_max]
+    lat_point_list = [lat_min, lat_max, lat_max, lat_min]
+    geom = shapely.geometry.Polygon(zip(lon_point_list, lat_point_list))
+    gdf = gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[geom])
+    return json.loads(gdf.to_json())
+
+
+def create_appears_download_task(dataset, parameter, yyyymmdd1, yyyymmdd2, zone):
+    """
+    Return formatted json request in AppEEARS format
+    """
+
+    return {
+        'task_type': 'area',
+        'task_name': '_'.join(['request', dataset, parameter,
+                               yyyymmdd1.strftime('%Y%m%d'), yyyymmdd2.strftime('%Y%m%d')]),
+        'params': {
+            'dates': [
+                {
+                    # Dates format MM-DD-YYYY
+                    'startDate': yyyymmdd1.strftime("%m-%d-%Y"),
+                    'endDate': yyyymmdd2.strftime("%m-%d-%Y")
+                }],
+            'layers': [{'layer': parameter, 'product': dataset}],
+            'output': {
+                'format': {
+                    'type': 'geotiff'},
+                'projection': 'geographic'},
+            'geo': zone,
+        }
+    }
+
+
+def get_all_appears(outdir, dataset, parameters, yyyymmdd1, yyyymmdd2, lat_min, lat_max, lon_min, lon_max):
+    """
+    Download data from Appears API for:
+        - one product
+        - one or several layers of the product
+        - a defined bbox
+        - a time period
+    """
+
+    # Convert latitude-longitude to geojson zone
+    zone = geojson_from_bbox(lat_min, lat_max, lon_min, lon_max)
+
+    # Create list of download tasks
+    tasks_list = []
+    # Download 10 days maximum per task
+    nb_days_per_task = 10
+    # watch out dernier jour du mois ou premier du suivant ?
+    for day1 in pd.date_range(yyyymmdd1, yyyymmdd2, freq=f"{nb_days_per_task}D"):
+        for p in parameters:
+            day2 = min(yyyymmdd2 + dt.timedelta(days=1), day1 + dt.timedelta(days=nb_days_per_task - 1))
+            tasks_list.append(create_appears_download_task(dataset, p, day1, day2, zone))
+
+    i = 0
+    for task in tasks_list:
+        print(f"Processing task {task['task_name']}")
+        # request_appears(task, outdir / dataset)
+        request_appears(task, outdir / dataset / f"task_{i}")
+        i += 1
+
+
+def request_appears(task, outdir):
+    """
+    Send a json request to AppEARS API.
+    Wait for it to be completed.
+    Save data to disk.
+    """
+
+    out = outdir / task['params']['layers'][0]['layer']
+    out.mkdir(exist_ok=True, parents=True)
+    (out / 'aux').mkdir(exist_ok=True)
+
+    api = 'https://appeears.earthdatacloud.nasa.gov/api/'
+    user = 'XXX'
+    password = 'XXX'
+
+    token_response = r.post('{}login'.format(api), auth=(user, password)).json()
+    head = {'Authorization': 'Bearer {}'.format(token_response['token'])}
+
+    task_response = r.post('{}task'.format(api), json=task, headers=head).json()
+
+    starttime = time.time()
+    while r.get('{}task/{}'.format(api, task_response['task_id']), headers=head).json()['status'] != 'done':
+        print(r.get('{}task/{}'.format(api, task_response['task_id']), headers=head).json()['status'])
+        time.sleep(20.0 - ((time.time() - starttime) % 20.0))
+    print(r.get('{}task/{}'.format(api, task_response['task_id']), headers=head).json()['status'])
+
+    bundle = r.get(f'{api}bundle/{task_response["task_id"]}', headers=head).json()
+    for f in bundle['files']:
+
+        dl = r.get(f"{api}bundle/{task_response['task_id']}/{f['file_id']}", headers=head, stream=True,
+                   allow_redirects='True')
+        if f['file_name'].endswith('.tif'):
+            fileout_path = out / f['file_name'].split('/')[1]
+        else:
+            fileout_path = out / 'aux' / f['file_name']
+
+        print(f'Création de {fileout_path}')
+
+        with open(fileout_path, 'wb') as ff:
+            for data in dl.iter_content(chunk_size=8192):
+                ff.write(data)
+
+                # Convert time from UTC to local time
 
 # Décumul de précipitations
 
 # Conversion unités
-
-
-
-
