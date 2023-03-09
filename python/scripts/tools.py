@@ -167,11 +167,9 @@ def get_all_appears(outdir, dataset, parameters, yyyymmdd1, yyyymmdd2, lat_min, 
     tasks_list = []
     # Download 10 days maximum per task
     nb_days_per_task = 10
-    # watch out dernier jour du mois ou premier du suivant ?
-    # todo: FIX
     for day1 in pd.date_range(yyyymmdd1, yyyymmdd2, freq=f"{nb_days_per_task}D"):
         for p in parameters:
-            day2 = min(yyyymmdd2 + dt.timedelta(days=1), day1 + dt.timedelta(days=nb_days_per_task - 1))
+            day2 = min(yyyymmdd2, day1 + dt.timedelta(days=nb_days_per_task - 1))
             tasks_list.append(create_appears_download_task(dataset, p, day1, day2, zone))
 
     # Send all data requests to API at once
