@@ -21,7 +21,7 @@ import yaml
 ###
 
 logger = logging.getLogger(__name__)
-
+thread_local = threading.local()
 
 def get_one_month_cds(parameter, year, month, lat_min, lat_max, lon_min, lon_max, dataset, outfile, connex):
     # Download hourly data for one full month for one parameter and one bounding box
@@ -174,6 +174,9 @@ def get_all_appears(outdir, dataset, parameters, yyyymmdd1, yyyymmdd2, lat_min, 
             day2 = min(yyyymmdd2 + dt.timedelta(days=1), day1 + dt.timedelta(days=nb_days_per_task - 1))
             tasks_list.append(create_appears_download_task(dataset, p, day1, day2, zone))
 
+    # Send all data requests to API at once
+    tasks_ids = send_request_appeears(tasks_list)
+
     i = 0
     for task in tasks_list:
         print(f"Processing task {task['task_name']}")
@@ -181,6 +184,14 @@ def get_all_appears(outdir, dataset, parameters, yyyymmdd1, yyyymmdd2, lat_min, 
         request_appears(task, outdir / dataset / f"task_{i}")
         i += 1
 
+
+def send_request_appears(list, api='https://appeears.earthdatacloud.nasa.gov/api/'):
+
+
+def get_credentials(portal, file="../../config.yml"):
+    with open(file, 'r') as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)[portal]
+    return config['username'], config['password']
 
 def request_appears(task, outdir, api='https://appeears.earthdatacloud.nasa.gov/api/'):
     """
@@ -193,10 +204,8 @@ def request_appears(task, outdir, api='https://appeears.earthdatacloud.nasa.gov/
     out.mkdir(exist_ok=True, parents=True)
     (out / 'aux').mkdir(exist_ok=True)
 
-    with open("../../config.yml", 'r') as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)['AppEEARS']
-
-    token_response = r.post('{}login'.format(api), auth=(config['username'], config['password'])).json()
+    user, password = get_credentials('AppEEARS')
+    token_response = r.post('{}login'.format(api), auth=(user, password)).json()
     head = {'Authorization': 'Bearer {}'.format(token_response['token'])}
 
     # Send request to API
@@ -210,6 +219,7 @@ def request_appears(task, outdir, api='https://appeears.earthdatacloud.nasa.gov/
     print(r.get('{}task/{}'.format(api, task_response['task_id']), headers=head).json()['status'])
 
     # Download data from request
+    # todo: download only the _param_ tif files? and drop the QC and aux stuff?
     bundle = r.get(f'{api}bundle/{task_response["task_id"]}', headers=head).json()
     for f in bundle['files']:
 
