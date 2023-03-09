@@ -26,14 +26,14 @@ datadir = pathlib.Path("/home", "elodie", "Data")
 
 # Product name
 # Possible values: ERA5-land / MOD11A1.061
-#product = "MOD11A1.061"
-product = 'ERA5-land'
+product = "MOD11A1.061"
+#product = 'ERA5-land'
 
 # Parameters
 # Possible values: total_precipitation, skin_temperature
-parameters = ["total_precipitation", "skin_temperature"]
+#parameters = ["total_precipitation", "skin_temperature"]
 # MODIS parameters
-#parameters = ['Emis_32', 'LST_Day_1km']
+parameters = ['Emis_32', 'LST_Day_1km']
 
 # Zone to download
 # Existing zones: France
@@ -41,7 +41,7 @@ zone = 'France'
 
 # Period to download - format YYYYMMDD
 yyyymmdd1 = "20200101"
-yyyymmdd2 = "20200331"
+yyyymmdd2 = "20200101"
 
 # Data will be saved in datadir/zone
 # Filenames convention: YYYYMM_parameter.nc
@@ -49,7 +49,7 @@ yyyymmdd2 = "20200331"
 
 # ---------------------------------------------------------------
 
-outdir = datadir / zone
+outdir = datadir / zone / 'TEST'
 
 d1 = dt.datetime.strptime(yyyymmdd1, "%Y%m%d")
 d2 = dt.datetime.strptime(yyyymmdd2, "%Y%m%d")
@@ -70,19 +70,10 @@ if product == "ERA5-land":
 
 elif product == "MOD11A1.061":
 
-    api = 'https://appeears.earthdatacloud.nasa.gov/api'
-
-    user = 'ElodieFernandez'
-    password = 'hf9#ajYf6%REDb'
-
     starttime = time.time()
     tools.get_all_appears(outdir, product, parameters, d1, d2,
                         bbox['lat_min'], bbox['lat_max'], bbox['lon_min'], bbox['lon_max'])
     print((time.time() - starttime))
-
-    ##token_response = r.post('{}login'.format(api), auth=(user, password)).json()
-    ##del user, password
-    ##token_response
 
 else:
     print(f'Data download not available yet for product {product}')
