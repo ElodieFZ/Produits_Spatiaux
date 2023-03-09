@@ -14,6 +14,7 @@ import requests as r
 import threading
 import json
 import time
+import yaml
 
 ###
 # Tools to work with spatial data in python
@@ -181,9 +182,9 @@ def get_all_appears(outdir, dataset, parameters, yyyymmdd1, yyyymmdd2, lat_min, 
         i += 1
 
 
-def request_appears(task, outdir):
+def request_appears(task, outdir, api='https://appeears.earthdatacloud.nasa.gov/api/'):
     """
-    Send a json request to AppEARS API.
+    Send a json request to AppEEARS API.
     Wait for it to be completed.
     Save data to disk.
     """
@@ -192,21 +193,23 @@ def request_appears(task, outdir):
     out.mkdir(exist_ok=True, parents=True)
     (out / 'aux').mkdir(exist_ok=True)
 
-    api = 'https://appeears.earthdatacloud.nasa.gov/api/'
-    user = 'XXX'
-    password = 'XXX'
+    with open("../../config.yml", 'r') as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)['AppEEARS']
 
-    token_response = r.post('{}login'.format(api), auth=(user, password)).json()
+    token_response = r.post('{}login'.format(api), auth=(config['username'], config['password'])).json()
     head = {'Authorization': 'Bearer {}'.format(token_response['token'])}
 
+    # Send request to API
     task_response = r.post('{}task'.format(api), json=task, headers=head).json()
 
+    # Wait for request completion
     starttime = time.time()
     while r.get('{}task/{}'.format(api, task_response['task_id']), headers=head).json()['status'] != 'done':
         print(r.get('{}task/{}'.format(api, task_response['task_id']), headers=head).json()['status'])
         time.sleep(20.0 - ((time.time() - starttime) % 20.0))
     print(r.get('{}task/{}'.format(api, task_response['task_id']), headers=head).json()['status'])
 
+    # Download data from request
     bundle = r.get(f'{api}bundle/{task_response["task_id"]}', headers=head).json()
     for f in bundle['files']:
 
@@ -217,8 +220,7 @@ def request_appears(task, outdir):
         else:
             fileout_path = out / 'aux' / f['file_name']
 
-        print(f'Création de {fileout_path}')
-
+        logger.info(f'Création de {fileout_path}')
         with open(fileout_path, 'wb') as ff:
             for data in dl.iter_content(chunk_size=8192):
                 ff.write(data)
