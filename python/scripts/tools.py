@@ -11,7 +11,6 @@ import logging
 import datetime as dt
 import concurrent.futures
 import requests as r
-import threading
 import json
 import time
 import yaml
@@ -21,7 +20,7 @@ import yaml
 ###
 
 logger = logging.getLogger(__name__)
-thread_local = threading.local()
+
 
 def get_one_month_cds(parameter, year, month, lat_min, lat_max, lon_min, lon_max, dataset, outfile, connex):
     # Download hourly data for one full month for one parameter and one bounding box
@@ -169,23 +168,40 @@ def get_all_appears(outdir, dataset, parameters, yyyymmdd1, yyyymmdd2, lat_min, 
     # Download 10 days maximum per task
     nb_days_per_task = 10
     # watch out dernier jour du mois ou premier du suivant ?
+    # todo: FIX
     for day1 in pd.date_range(yyyymmdd1, yyyymmdd2, freq=f"{nb_days_per_task}D"):
         for p in parameters:
             day2 = min(yyyymmdd2 + dt.timedelta(days=1), day1 + dt.timedelta(days=nb_days_per_task - 1))
             tasks_list.append(create_appears_download_task(dataset, p, day1, day2, zone))
 
     # Send all data requests to API at once
-    tasks_ids = send_request_appeears(tasks_list)
+    # todo: a bit long too - split?
+    tasks_sent = post_request_appeears(tasks_list)
 
-    i = 0
-    for task in tasks_list:
-        print(f"Processing task {task['task_name']}")
-        # request_appears(task, outdir / dataset)
-        request_appears(task, outdir / dataset / f"task_{i}")
-        i += 1
+    # Retrieve data
+    for task in tasks_sent:
+        print(f"Checking task {task['task_name']}")
+        get_request_appears(task, outdir / dataset)
 
 
-def send_request_appears(list, api='https://appeears.earthdatacloud.nasa.gov/api/'):
+def post_request_appeears(list, api='https://appeears.earthdatacloud.nasa.gov/api/'):
+    """
+
+    :param list:
+    :param api:
+    :return:
+    """
+    user, password = get_credentials('AppEEARS')
+    token_response = r.post('{}login'.format(api), auth=(user, password)).json()
+    head = {'Authorization': 'Bearer {}'.format(token_response['token'])}
+
+    # Send all requests to API
+    for task in list:
+        id = r.post('{}task'.format(api), json=task, headers=head).json()
+        task.update({"id": id['task_id']})
+
+    # Return tasks id list
+    return list
 
 
 def get_credentials(portal, file="../../config.yml"):
@@ -193,37 +209,35 @@ def get_credentials(portal, file="../../config.yml"):
         config = yaml.load(f, Loader=yaml.FullLoader)[portal]
     return config['username'], config['password']
 
-def request_appears(task, outdir, api='https://appeears.earthdatacloud.nasa.gov/api/'):
+
+def get_request_appears(task, outdir, api='https://appeears.earthdatacloud.nasa.gov/api/'):
     """
     Send a json request to AppEEARS API.
     Wait for it to be completed.
     Save data to disk.
     """
 
-    out = outdir / task['params']['layers'][0]['layer']
-    out.mkdir(exist_ok=True, parents=True)
-    (out / 'aux').mkdir(exist_ok=True)
-
     user, password = get_credentials('AppEEARS')
     token_response = r.post('{}login'.format(api), auth=(user, password)).json()
     head = {'Authorization': 'Bearer {}'.format(token_response['token'])}
 
-    # Send request to API
-    task_response = r.post('{}task'.format(api), json=task, headers=head).json()
+    out = outdir / "test" / task['params']['layers'][0]['layer']
+    out.mkdir(exist_ok=True, parents=True)
+    (out / 'aux').mkdir(exist_ok=True)
 
     # Wait for request completion
     starttime = time.time()
-    while r.get('{}task/{}'.format(api, task_response['task_id']), headers=head).json()['status'] != 'done':
-        print(r.get('{}task/{}'.format(api, task_response['task_id']), headers=head).json()['status'])
+    while r.get('{}task/{}'.format(api, task['id']), headers=head).json()['status'] != 'done':
+        print(r.get('{}task/{}'.format(api, task['id']), headers=head).json()['status'])
         time.sleep(20.0 - ((time.time() - starttime) % 20.0))
-    print(r.get('{}task/{}'.format(api, task_response['task_id']), headers=head).json()['status'])
+    print(r.get('{}task/{}'.format(api, task['id']), headers=head).json()['status'])
 
     # Download data from request
     # todo: download only the _param_ tif files? and drop the QC and aux stuff?
-    bundle = r.get(f'{api}bundle/{task_response["task_id"]}', headers=head).json()
+    bundle = r.get(f'{api}bundle/{task["id"]}', headers=head).json()
     for f in bundle['files']:
 
-        dl = r.get(f"{api}bundle/{task_response['task_id']}/{f['file_id']}", headers=head, stream=True,
+        dl = r.get(f"{api}bundle/{task['id']}/{f['file_id']}", headers=head, stream=True,
                    allow_redirects='True')
         if f['file_name'].endswith('.tif'):
             fileout_path = out / f['file_name'].split('/')[1]
