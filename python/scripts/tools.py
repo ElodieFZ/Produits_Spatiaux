@@ -15,18 +15,27 @@ import json
 import time
 import yaml
 import cdsapi
+import threading
 
 ###
 # Tools to work with spatial data in python
 ###
 
 logger = logging.getLogger(__name__)
+thread_local = threading.local()
+
+
+def connect_cds():
+    if not hasattr(thread_local, "api"):
+        thread_local.api = cdsapi.Client()
+    return thread_local.api
 
 
 def get_one_month_cds(params):
 
     # Connect to CDS
-    api = cdsapi.Client()
+    #api = cdsapi.Client()
+    api = connect_cds()
 
     # Download hourly data for one full month for one parameter and one bounding box
     # Save as netcdf file
@@ -99,8 +108,15 @@ def get_period_cds(dataset, outdir, parameters, yyyymmdd1, yyyymmdd2, lat_min, l
                 'outfile': out / f"{year}{month}_{p}.nc"
             })
 
-    for req in list_req:
-        get_one_month_cds(req)
+    # Download all data sequentially
+    # Once data is cached, the thread version is way faster
+    # It is hard to tell (impossible?) to tell the speed difference
+    # for when data is not cached as too many factors out of our control
+    #for task in list_req:
+    #    get_one_month_cds(task)
+    # Download up to 5 products at once
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        executor.map(get_one_month_cds, list_req)
 
 
 def read_shapefile(file, crs_out='EPSG:4326'):
