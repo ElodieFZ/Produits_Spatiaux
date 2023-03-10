@@ -31,11 +31,13 @@ def connect_cds():
     return thread_local.api
 
 
-def get_one_month_cds(params):
+def get_one_month_cds(params, threading=False):
 
     # Connect to CDS
-    #api = cdsapi.Client()
-    api = connect_cds()
+    if threading:
+        api = cdsapi.Client()
+    else:
+        api = connect_cds()
 
     # Download hourly data for one full month for one parameter and one bounding box
     # Save as netcdf file
@@ -85,7 +87,7 @@ def get_one_month_cds(params):
     return True
 
 
-def get_period_cds(dataset, outdir, parameters, yyyymmdd1, yyyymmdd2, lat_min, lat_max, lon_min, lon_max):
+def get_period_cds(dataset, outdir, parameters, yyyymmdd1, yyyymmdd2, lat_min, lat_max, lon_min, lon_max, threading=False):
     # Download hourly data for one period, one parameter and one bounding box
     # Save as netcdf files, one file per month
 
@@ -112,11 +114,13 @@ def get_period_cds(dataset, outdir, parameters, yyyymmdd1, yyyymmdd2, lat_min, l
     # Once data is cached, the thread version is way faster
     # It is hard to tell (impossible?) to tell the speed difference
     # for when data is not cached as too many factors out of our control
-    #for task in list_req:
-    #    get_one_month_cds(task)
-    # Download up to 5 products at once
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        executor.map(get_one_month_cds, list_req)
+    if threading:
+        # Download up to 5 products at once
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            executor.map(get_one_month_cds, list_req)
+    else:
+        for task in list_req:
+            get_one_month_cds(task)
 
 
 def read_shapefile(file, crs_out='EPSG:4326'):
