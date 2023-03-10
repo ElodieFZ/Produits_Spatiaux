@@ -31,7 +31,7 @@ def connect_cds():
     return thread_local.api
 
 
-def get_one_month_cds(params, threading=False):
+def get_one_month_cds(params, threading=True):
 
     # Connect to CDS
     if threading:
@@ -43,51 +43,56 @@ def get_one_month_cds(params, threading=False):
     # Save as netcdf file
     if params['dataset'] == "ERA5-land":
         cds_dataset = "reanalysis-era5-land"
+    elif params['dataset'] == "ERA5":
+            cds_dataset = "reanalysis-era5-single-levels"
     else:
         logger.error("Unknown dataset.")
         return False
 
     logger.info(f"Requesting {params['parameter']} for year {params['year']} month {params['month']}")
 
-    api.retrieve(
-        cds_dataset,
-        {
-            'area': params['zone'],
-            'variable': params['parameter'],
-            'year': params['year'],
-            'month': params['month'],
-            'day': [
-                '01', '02', '03',
-                '04', '05', '06',
-                '07', '08', '09',
-                '10', '11', '12',
-                '13', '14', '15',
-                '16', '17', '18',
-                '19', '20', '21',
-                '22', '23', '24',
-                '25', '26', '27',
-                '28', '29', '30',
-                '31',
-            ],
-            'time': [
-                '00:00', '01:00', '02:00',
-                '03:00', '04:00', '05:00',
-                '06:00', '07:00', '08:00',
-                '09:00', '10:00', '11:00',
-                '12:00', '13:00', '14:00',
-                '15:00', '16:00', '17:00',
-                '18:00', '19:00', '20:00',
-                '21:00', '22:00', '23:00',
-            ],
-            'format': 'netcdf',
-        },
-        params['outfile'])
+    # Build CDS request
+    req = {
+        'area': params['zone'],
+        'variable': params['parameter'],
+        'year': params['year'],
+        'month': params['month'],
+        'day': [
+            '01', '02', '03',
+            '04', '05', '06',
+            '07', '08', '09',
+            '10', '11', '12',
+            '13', '14', '15',
+            '16', '17', '18',
+            '19', '20', '21',
+            '22', '23', '24',
+            '25', '26', '27',
+            '28', '29', '30',
+            '31',
+        ],
+        'time': [
+            '00:00', '01:00', '02:00',
+            '03:00', '04:00', '05:00',
+            '06:00', '07:00', '08:00',
+            '09:00', '10:00', '11:00',
+            '12:00', '13:00', '14:00',
+            '15:00', '16:00', '17:00',
+            '18:00', '19:00', '20:00',
+            '21:00', '22:00', '23:00',
+        ],
+        'format': 'netcdf',
+    }
+
+    if params['dataset'] == "ERA5":
+        req.update({'product_type': 'reanalysis'})
+
+    api.retrieve(cds_dataset, req, params['outfile'])
     logger.info(f"Data saved to {params['outfile']}")
 
     return True
 
 
-def get_period_cds(dataset, outdir, parameters, yyyymmdd1, yyyymmdd2, lat_min, lat_max, lon_min, lon_max, threading=False):
+def get_period_cds(dataset, outdir, parameters, yyyymmdd1, yyyymmdd2, lat_min, lat_max, lon_min, lon_max, threading=True):
     # Download hourly data for one period, one parameter and one bounding box
     # Save as netcdf files, one file per month
 

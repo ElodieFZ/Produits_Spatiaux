@@ -25,9 +25,9 @@ logger = logging.getLogger(__name__)
 datadir = pathlib.Path("/home", "elodie", "Data")
 
 # Product name
-# Possible values: ERA5-land / MOD11A1.061
+# Possible values: ERA5-land / MOD11A1.061 / ERA5
 #product = "MOD11A1.061"
-product = 'ERA5-land'
+product = 'ERA5'
 
 # Parameters
 # Possible values: total_precipitation, skin_temperature
@@ -40,8 +40,8 @@ parameters = ["total_precipitation", "skin_temperature"]
 zone = 'France'
 
 # Period to download - format YYYYMMDD
-yyyymmdd1 = "20200101"
-yyyymmdd2 = "20200215"
+yyyymmdd1 = "20170101"
+yyyymmdd2 = "20170331"
 
 # Data will be saved in datadir/zone
 # Filenames convention: YYYYMM_parameter.nc
@@ -61,7 +61,7 @@ with open('zones.yaml', 'r') as f:
 starttime = time.time()
 
 # Different download scripts depending on product
-if product == "ERA5-land":
+if product in ["ERA5-land", "ERA5"]:
 
     tools.get_period_cds(product, outdir / product, parameters, d1, d2,
                              bbox['lat_min'], bbox['lat_max'], bbox['lon_min'], bbox['lon_max'])
